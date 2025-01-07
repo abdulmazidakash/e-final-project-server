@@ -14,6 +14,7 @@ app.use(express.json());
 
 
 
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.j0hxo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -40,20 +41,23 @@ async function run() {
   app.post('/jwt', async(req, res) =>{
     const user = req.body;
     const token = jwt.sign(user, process.env.ACCESS_TOKEN_API, { expiresIn: '1h'});
-    res.send(token);
+    res.send({token});
   })
 
   //middleware
   const verifyToken = (req, res, next) =>{
-    console.log('inside verify token', req.headers);
+    console.log('inside verify token', req.headers.authorization);
     if(!req.headers.authorization){
       return res.status(401).send({message: 'forbidden access'});
     }
-    const token = req.headers.authorization.split('')[1];
-    if(!token){
-      
-    }
-    next();
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_API, (err, decoded) =>{
+      if(err){
+        return res.status(401).send({message: 'forbidden access'})
+      }
+      req.decoded = decoded;
+      next();
+    })
   }
 
 
@@ -89,6 +93,7 @@ async function run() {
 
   //get users collection 
   app.get('/users', verifyToken, async(req, res) =>{
+    // console.log(req.headers);
     const result = await userCollection.find().toArray();
     res.send(result);
   })
